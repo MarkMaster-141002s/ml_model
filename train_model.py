@@ -15,7 +15,7 @@ db = firestore.client()
 manila_tz = pytz.timezone("Asia/Manila")
 
 # Step 1: Fetch sensor data from Firestore
-docs = db.collection("dataCollectionSensor").stream()
+docs = db.collection("yieldPredictions").stream()
 
 data = []
 for doc in docs:
@@ -33,15 +33,20 @@ for doc in docs:
         data.append({
             'temperature': float(d.get('temperature')),
             'humidity': float(d.get('humidity')),
-            'soil_moisture': float(d.get('localMoisture')),
+            'soil_moisture': float(d.get('soil_moisture')),
+            'predicted_yield': float(d.get('predicted_yield')),
             'timestamp': manila_time.strftime("%Y-%m-%d %H:%M:%S")
         })
     except Exception as e:
         print("Skipped document due to error:", e)
         continue
 
+# Check if data is empty before proceeding
+if not data:
+    print("⚠️ No data found in yieldPredictions collection.")
+    exit()
+
 df = pd.DataFrame(data)
-df.dropna(inplace=True)
 
 # Step 2: Simulate realistic yield based on Year 1–3 logic
 def estimate_yield(temp, hum, moist):
@@ -62,7 +67,7 @@ df['yield'] = df.apply(lambda row: estimate_yield(
 
 # Step 3: Train regression model
 X = df[['temperature', 'humidity', 'soil_moisture']]
-y = df['yield']
+y = df['predicted_yield']
 
 model = LinearRegression()
 model.fit(X, y)
@@ -75,12 +80,12 @@ df['predicted_yield'] = model.predict(X)
 
 # Step 5: Save predictions to Firestore
 for _, row in df.iterrows():
-    db.collection('yieldPredictions').add({
+    db.collection('trainedData').add({
         'temperature': row['temperature'],
         'humidity': row['humidity'],
         'soil_moisture': row['soil_moisture'],
         'predicted_yield': row['predicted_yield'],
-        'timestamp': row['timestamp']  # in Manila time (formatted)
+        'timestamp': row['timestamp']
     })
 
 print("✅ Model trained and predictions saved using Manila time.")
