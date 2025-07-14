@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 import joblib
 import numpy as np
+import subprocess
 
 app = Flask(__name__)
 
@@ -36,6 +37,21 @@ def predict():
 
     except Exception as e:
         return jsonify({'error': str(e)}), 400
+
+# ✅ New endpoint to train the model
+@app.route('/train', methods=['POST'])
+def train():
+    try:
+        result = subprocess.run(['python', 'train_model.py'], capture_output=True, text=True, check=True)
+        return jsonify({
+            'message': '✅ Model training started successfully.',
+            'output': result.stdout
+        }), 200
+    except subprocess.CalledProcessError as e:
+        return jsonify({
+            'error': '❌ Training failed.',
+            'details': e.stderr
+        }), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
