@@ -1,12 +1,12 @@
 from flask import Flask, request, jsonify
-import joblib
 import numpy as np
-import subprocess
+import tensorflow as tf
+import os
 
 app = Flask(__name__)
 
-# Load the trained model
-model = joblib.load('yield_model.pkl')
+# ✅ Load the trained TensorFlow model
+model = tf.keras.models.load_model("yield_model.keras")
 
 @app.route('/')
 def home():
@@ -17,42 +17,27 @@ def predict():
     try:
         data = request.get_json()
 
-        # Extract input features as integers
-        temp = int(data['temperature'])
-        hum = int(data['humidity'])
-        moist = int(data['soil_moisture'])
+        # ✅ Read input
+        temperature = float(data['temperature'])
+        humidity = float(data['humidity'])
+        soil_moisture = data['soil_moisture']
 
-        # Predict yield
-        input_array = np.array([[temp, hum, moist]])
-        predicted_yield = model.predict(input_array)[0]
+        # If soil_moisture is a list (multiple sensors), average it
+        if isinstance(soil_moisture, list):
+            soil_moisture = sum(soil_moisture) / len(soil_moisture)
+
+        # ✅ Prepare input for prediction
+        input_data = np.array([[temperature, humidity, soil_moisture]])
+
+        # 🔮 Predict
+        predicted_yield = model.predict(input_data)[0][0]
 
         return jsonify({
-            'predicted_yield': round(predicted_yield, 2),
-            'input': {
-                'temperature': temp,
-                'humidity': hum,
-                'soil_moisture': moist
-            }
+            "predicted_yield": round(float(predicted_yield), 2)
         })
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 400
-
-# ✅ New endpoint to train the model
-@app.route('/train', methods=['POST'])
-def train():
-    try:
-        result = subprocess.run(['python', 'train_model.py'], capture_output=True, text=True, check=True)
-        return jsonify({
-            'message': '✅ Model training started successfully.',
-            'output': result.stdout
-        }), 200
-    except subprocess.CalledProcessError as e:
-        return jsonify({
-            'error': '❌ Training failed.',
-            'details': e.stderr
-        }), 500
+        return jsonify({"error": str(e)})
 
 if __name__ == '__main__':
     app.run(debug=True)
-
