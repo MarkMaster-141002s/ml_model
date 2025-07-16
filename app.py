@@ -17,10 +17,10 @@ def predict():
     try:
         data = request.get_json()
 
-        # Extract input features
-        temp = float(data['temperature'])
-        hum = float(data['humidity'])
-        moist = float(data['soil_moisture'])
+        # Extract input features as integers
+        temp = int(data['temperature'])
+        hum = int(data['humidity'])
+        moist = int(data['soil_moisture'])
 
         # Predict yield
         input_array = np.array([[temp, hum, moist]])
@@ -55,3 +55,4 @@ def train():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
