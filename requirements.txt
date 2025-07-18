@@ -1,8 +1,7 @@
+Flask
+firebase-admin
+pandas
 joblib
 scikit-learn
 pytz
-Flask
 gunicorn
-firebase-admin
-pandas
-tensorflow
