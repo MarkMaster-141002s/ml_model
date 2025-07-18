@@ -1,8 +1,8 @@
 joblib
 scikit-learn
 pytz
-Flask==2.3.2
-gunicorn==21.2.0
-firebase-admin==6.2.0
-pandas==2.1.3
-tensorflow==2.15.0
+Flask
+gunicorn
+firebase-admin
+pandas
+tensorflow
