@@ -2,7 +2,7 @@ name: Retrain Model
 
 on:
   schedule:
-    - cron: '*/2 * * * *'  # Runs every 5 minutes
+    - cron: '*/5 * * * *'  # Runs every 5 minutes
   workflow_dispatch:
 
 jobs:
