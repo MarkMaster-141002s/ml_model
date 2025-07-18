@@ -2,8 +2,10 @@ from flask import Flask, request, jsonify
 import joblib
 import numpy as np
 import subprocess
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app, origins=["https://kalamansi-yield-system-eudp0z.flutterflow.app"])
 
 # Load the trained model
 model = joblib.load('yield_model.pkl')
