@@ -6,4 +6,5 @@ scikit-learn
 pytz
 gunicorn
 flask-cors
+tensorflow
 
