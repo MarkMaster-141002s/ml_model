@@ -7,6 +7,6 @@ pytz
 gunicorn
 flask-cors
 tensorflow
-
+protobuf==3.20.3
 
 
