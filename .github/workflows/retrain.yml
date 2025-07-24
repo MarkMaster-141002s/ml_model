@@ -2,7 +2,7 @@ name: Retrain Model
 
 on:
   schedule:
-    - cron: '55 23 * * *'  # ✅ Runs at 11:55 PM UTC every day
+    - cron: '55 15 * * *'  # ✅ Runs at 11:55 PM UTC every day
   workflow_dispatch:       # Allows manual triggering
 
 jobs:
@@ -16,7 +16,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: '3.10'
 
       - name: Install dependencies
         run: |
