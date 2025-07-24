@@ -1,6 +1,7 @@
 import firebase_admin
 from firebase_admin import credentials, firestore
 from sklearn.preprocessing import StandardScaler
+import tensorflow as tf
 import numpy as np
 from datetime import datetime
 import pytz
