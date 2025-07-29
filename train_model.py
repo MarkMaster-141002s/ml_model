@@ -21,6 +21,7 @@ now = datetime.now(ph_tz)
 formatted_date = now.strftime("%m/%d/%Y")         # e.g. 07/23/2025
 formatted_month = now.strftime("%Y-%m")            # e.g. 2025-07
 formatted_train_time = now.strftime("%Y-%m-%d %I:%M %p")
+formatted_time_only = now.strftime("%I:%M %p") 
 
 # ✅ Fetch only today’s data
 docs = db.collection("dataCollectionSensor").where("date", "==", formatted_date).stream()
@@ -106,21 +107,38 @@ db.collection("DailyReading").add({
     "trained_at": formatted_train_time
 })
 
-# ✅ Update Monthly Total in monthlyYieldSummary (📘 NEW)
-monthly_doc_ref = db.collection("monthlyYieldSummary").document(formatted_month)
-monthly_doc = monthly_doc_ref.get()
+first_of_month = formatted_month 
 
-if monthly_doc.exists:
-    prev_total = monthly_doc.to_dict().get("total_yield", 0)
-    new_total = prev_total + total_day_yield
-else:
-    new_total = total_day_yield
+try:
+    # Query for existing doc with this month
+    monthly_docs = db.collection("monthlyYieldSummary").where("month", "==", first_of_month).get()
 
-monthly_doc_ref.set({
-    "month": formatted_month,
-    "total_yield": round(new_total, 2),
-    "last_updated": formatted_train_time
-})
+    if monthly_docs:
+        print(f"update this month")
+        monthly_doc = monthly_docs[0]
+        doc_ref = monthly_doc.reference
+        prev_total = monthly_doc.to_dict().get("total_yield", 0)
+        new_total = prev_total + total_day_yield
+
+        doc_ref.update({
+            "total_yield": round(new_total, 2),
+            "past_updated": formatted_train_time,
+            "formatTimeUpdate": formatted_time_only
+        })
+    else:
+        print(f"Create new month")
+        new_total = total_day_yield
+        db.collection("monthlyYieldSummary").add({
+            "month": first_of_month,
+            "total_yield": round(new_total, 2),
+            "past_updated": formatted_train_time,
+            "formatTimeUpdate": formatted_time_only
+        })
+
+except Exception as e:
+    print(f"⚠️ Failed to update monthly total: {e}")
+    new_total = total_day_yield  # Ensure it's defined for printing
+
 
 # ✅ Final logs
 print(f"✅ {len(predicted_yields)} predictions saved.")
