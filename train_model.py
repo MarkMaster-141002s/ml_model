@@ -18,13 +18,20 @@ model = tf.keras.models.load_model("yield_model.keras")
 # ✅ Get current Philippine time
 ph_tz = pytz.timezone("Asia/Manila")
 now = datetime.now(ph_tz)
-formatted_date = now.strftime("%m/%d/%Y")         # e.g. 07/23/2025
+formatted_date = now.strftime("%m/%d/%Y")
+formatted_year = now.strftime("yy")         # e.g. 07/23/2025
 formatted_month = now.strftime("%Y-%m")            # e.g. 2025-07
 formatted_train_time = now.strftime("%Y-%m-%d %I:%M %p")
-formatted_time_only = now.strftime("%I:%M %p") 
+formatted_time_only = now.strftime("%I:%M %p")  # e.g., 02:14 PM
+
 
 # ✅ Fetch only today’s data
-docs = db.collection("dataCollectionSensor").where("date", "==", formatted_date).stream()
+docs = (
+    db.collection("dataCollectionSensor")
+    .where("date", "==", formatted_date)
+    .order_by("timestamp", direction=firestore.Query.DESCENDING)
+    .stream()
+)
 trained_at = datetime.now(pytz.timezone("Asia/Manila")).strftime("%Y-%m-%d %I:%M %p")
 
 db.collection("trainingLogs").add({
@@ -34,25 +41,14 @@ db.collection("trainingLogs").add({
 
 unlabeled_data = []
 docs_to_update = []
-
 for doc in docs:
     record = doc.to_dict()
 
-    if all(k in record for k in ["temperature", "humidity", "soilMoisture"]):
-        soil_data = record["soilMoisture"]
-        total_moisture = sum([
-            soil_data.get("local", 0),
-            soil_data.get("sender0", 0),
-            soil_data.get("sender1", 0),
-            soil_data.get("sender2", 0),
-            soil_data.get("sender3", 0),
-            soil_data.get("sender4", 0)
-        ])
-
+    if all(k in record for k in ["temperature", "humidity", "localMoisture"]):
         unlabeled_data.append([
             int(record["temperature"]),
             int(record["humidity"]),
-            total_moisture
+            int(record["localMoisture"])
         ])
         docs_to_update.append((doc.id, record))
 
@@ -85,7 +81,7 @@ for i, (doc_id, original) in enumerate(docs_to_update):
     db.collection("predictedYield").add({
         "temperature": original["temperature"],
         "humidity": original["humidity"],
-        "soilMoisture": total_moisture,
+        "soilMoisture": original["localMoisture"],
         "timestamp": timestamp.isoformat(),
         "date": formatted_date,
         "time": formatted_time,
@@ -107,6 +103,15 @@ db.collection("DailyReading").add({
     "trained_at": formatted_train_time
 })
 
+timestamp_str = record.get("timestamp")  # e.g., "2025-08-05 14:30:00"
+if timestamp_str:
+    try:
+        year = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S").year
+        print("Year:", year)
+    except ValueError:
+        print("Invalid timestamp format")
+
+# Convert formatted_month to a proper datetime (1st of month)
 first_of_month = formatted_month 
 
 try:
@@ -114,7 +119,7 @@ try:
     monthly_docs = db.collection("monthlyYieldSummary").where("month", "==", first_of_month).get()
 
     if monthly_docs:
-        print(f"update this month")
+        print(f"update this month") 
         monthly_doc = monthly_docs[0]
         doc_ref = monthly_doc.reference
         prev_total = monthly_doc.to_dict().get("total_yield", 0)
@@ -123,7 +128,8 @@ try:
         doc_ref.update({
             "total_yield": round(new_total, 2),
             "past_updated": formatted_train_time,
-            "formatTimeUpdate": formatted_time_only
+            "formatTimeUpdate": formatted_time_only,
+            "year": year
         })
     else:
         print(f"Create new month")
@@ -132,12 +138,14 @@ try:
             "month": first_of_month,
             "total_yield": round(new_total, 2),
             "past_updated": formatted_train_time,
-            "formatTimeUpdate": formatted_time_only
+            "formatTimeUpdate": formatted_time_only,
+            "year": year
         })
 
 except Exception as e:
     print(f"⚠️ Failed to update monthly total: {e}")
     new_total = total_day_yield  # Ensure it's defined for printing
+
 
 
 # ✅ Final logs
